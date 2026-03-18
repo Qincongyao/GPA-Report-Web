@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPA Analysis | 成绩分析系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <h1 data-zh="GPA 成绩分析系统" data-en="GPA Analysis System">GPA Analysis System</h1>
+                <div class="lang-selector">
+                    <button class="lang-btn active" data-lang="zh">中文</button>
+                    <button class="lang-btn" data-lang="en">EN</button>
+                </div>
+            </div>
+            <p class="subtitle" data-zh="拖拽 Excel 文件自动生成分析报告" data-en="Drag Excel files to generate analysis reports">拖拽 Excel 文件自动生成分析报告</p>
+        </header>
+
+        <div class="upload-section">
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p class="drop-text" data-zh="拖拽 Excel 文件到这里" data-en="Drag Excel files here">拖拽 Excel 文件到这里</p>
+                    <p class="drop-hint" data-zh="或点击选择文件（支持批量）" data-en="Or click to select files (batch supported)">或点击选择文件（支持批量）</p>
+                    <input type="file" id="file-input" multiple accept=".xls,.xlsx" hidden>
+                </div>
+                <div class="drop-zone-overlay">
+                    <p data-zh="释放以上传" data-en="Release to upload">释放以上传</p>
+                </div>
+            </div>
+
+            <div id="file-list" class="file-list"></div>
+
+            <button id="upload-btn" class="btn-primary" disabled>
+                <span class="btn-text" data-zh="生成分析报告" data-en="Generate Report">生成分析报告</span>
+                <span class="btn-loading" style="display:none;" data-zh="处理中..." data-en="Processing...">处理中...</span>
+            </button>
+        </div>
+
+        <div id="result-section" class="result-section hidden">
+            <div class="result-header">
+                <h2 data-zh="✅ 分析完成" data-en="✅ Analysis Complete">✅ 分析完成</h2>
+                <div class="stats-summary" id="stats-summary"></div>
+            </div>
+            
+            <div id="report-content" class="report-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentLang = 'zh';
+        let selectedFiles = [];
+        
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileList = document.getElementById('file-list');
+        const uploadBtn = document.getElementById('upload-btn');
+        const resultSection = document.getElementById('result-section');
+        const reportContent = document.getElementById('report-content');
+        const statsSummary = document.getElementById('stats-summary');
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLang = btn.dataset.lang;
+                updateTexts();
+            });
+        });
+
+        function updateTexts() {
+            document.querySelectorAll('[data-zh][data-en]').forEach(el => {
+                el.textContent = currentLang === 'zh' ? el.dataset.zh : el.dataset.en;
+            });
+        }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            addFiles(Array.from(e.target.files));
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => 
+                f.name.endsWith('.xls') || f.name.endsWith('.xlsx')
+            );
+            addFiles(files);
+        });
+
+        function addFiles(files) {
+            files.forEach(file => {
+                if (!selectedFiles.find(f => f.name === file.name)) {
+                    selectedFiles.push(file);
+                }
+            });
+            renderFileList();
+        }
+
+        function removeFile(filename) {
+            selectedFiles = selectedFiles.filter(f => f.name !== filename);
+            renderFileList();
+        }
+
+        function renderFileList() {
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div class="file-item">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name">${file.name}</span>
+                    <button class="file-remove" onclick="removeFile('${file.name}')">×</button>
+                </div>
+            `).join('');
+            
+            uploadBtn.disabled = selectedFiles.length === 0;
+        }
+        
+        uploadBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            uploadBtn.disabled = true;
+            uploadBtn.querySelector('.btn-text').style.display = 'none';
+            uploadBtn.querySelector('.btn-loading').style.display = 'inline';
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            formData.append('lang', currentLang);
+
+            try {
+                const response = await fetch('/batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(result.report_url, result.stats);
+                } else {
+                    alert(currentLang === 'zh' ? '错误: ' + result.error : 'Error: ' + result.error);
+                }
+            } catch (error) {
+                alert(currentLang === 'zh' ? '上传失败: ' + error.message : 'Upload failed: ' + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.querySelector('.btn-text').style.display = 'inline';
+                uploadBtn.querySelector('.btn-loading').style.display = 'none';
+            }
+        });
+
+        function showResult(reportUrl, stats) {
+            resultSection.classList.remove('hidden');
+            
+            const labels = {
+                zh: { student: '学生', date: '日期', class: '班级' },
+                en: { student: 'Students', date: 'Dates', class: 'Classes' }
+            };
+            const l = labels[currentLang];
+            
+            statsSummary.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-icon">👥</span>
+                    <span>${l.student}</span>
+                    <span class="stat-value">${stats.studentCount}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">📅</span>
+                    <span>${l.date}</span>
+                    <span class="stat-value">${stats.dateCount}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🏫</span>
+                    <span>${l.class}</span>
+                    <span class="stat-value">${stats.classCount}</span>
+                </div>
+            `;
+
+            reportContent.innerHTML = `<iframe src="${reportUrl}" style="width:100%;height:850px;border:none;border-radius:16px;"></iframe>`;
+
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        updateTexts();
+    </script>
+</body>
+</html>
