@@ -1062,12 +1062,16 @@ function renderStatsAll() {
 }
 
 function bindUI() {
-  document.getElementById('classSelect').addEventListener('change', function() {
-    state.classFilter = this.value;
-    render();
-    updateChartsVisibility();
-    renderStatsAll();
-  });
+  // 班级筛选可能不存在（当只有All班级时）
+  var classSelect = document.getElementById('classSelect');
+  if (classSelect) {
+    classSelect.addEventListener('change', function() {
+      state.classFilter = this.value;
+      render();
+      updateChartsVisibility();
+      renderStatsAll();
+    });
+  }
   
   document.getElementById('onlyYellow').addEventListener('change', function() {
     state.onlyYellow = this.checked;
@@ -1084,7 +1088,8 @@ function bindUI() {
   });
   
   document.getElementById('resetBtn').addEventListener('click', function() {
-    document.getElementById('classSelect').value = '';
+    var classSelect = document.getElementById('classSelect');
+    if (classSelect) classSelect.value = '';
     document.getElementById('onlyYellow').checked = false;
     document.getElementById('onlyRed').checked = false;
     state = { classFilter: '', onlyYellow: false, onlyRed: false, sortKey: null, sortDir: 'asc' };
