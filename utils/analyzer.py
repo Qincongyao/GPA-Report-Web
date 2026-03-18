@@ -379,20 +379,27 @@ class GPAAanalyzer:
     def _date_from_name(self, path: str):
         stem = os.path.splitext(os.path.basename(path))[0]
         stem = re.sub(r"\(\d+\)$", "", stem)
-        m = re.search(r"(\d{8})", stem)
         
-        # 如果找不到日期，使用当前日期
-        if not m:
-            now = datetime.now()
-            year = now.year
-            month = now.month
-            day = now.day
-            return f"{year}/{month:02d}/{day:02d}", year, month, day
+        # 查找所有8位数字序列，验证是否为有效日期
+        all_matches = re.findall(r"(\d{8})", stem)
         
-        yyyymmdd = m.group(1)
-        year = int(yyyymmdd[:4])
-        month = int(yyyymmdd[4:6])
-        day = int(yyyymmdd[6:8])
+        # 从后往前找，找到第一个有效日期（最新的）
+        for yyyymmdd in reversed(all_matches):
+            try:
+                year = int(yyyymmdd[:4])
+                month = int(yyyymmdd[4:6])
+                day = int(yyyymmdd[6:8])
+                # 验证日期有效性
+                if 2000 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31:
+                    return f"{year}/{month:02d}/{day:02d}", year, month, day
+            except:
+                continue
+        
+        # 如果找不到有效日期，使用当前日期
+        now = datetime.now()
+        year = now.year
+        month = now.month
+        day = now.day
         return f"{year}/{month:02d}/{day:02d}", year, month, day
 
     def _parse_mmdd(self, s, default_year=2025):
