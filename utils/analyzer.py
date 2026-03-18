@@ -376,12 +376,19 @@ class GPAAanalyzer:
     
     # ========== 数据处理方法 ==========
     
-    def _date_from_name(self, path: str) -> str:
+    def _date_from_name(self, path: str):
         stem = os.path.splitext(os.path.basename(path))[0]
         stem = re.sub(r"\(\d+\)$", "", stem)
         m = re.search(r"(\d{8})", stem)
+        
+        # 如果找不到日期，使用当前日期
         if not m:
-            raise ValueError(f"无法从文件名解析日期：{stem}")
+            now = datetime.now()
+            year = now.year
+            month = now.month
+            day = now.day
+            return f"{year}/{month:02d}/{day:02d}", year, month, day
+        
         yyyymmdd = m.group(1)
         year = int(yyyymmdd[:4])
         month = int(yyyymmdd[4:6])

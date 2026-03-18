@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GPA Report</title>
+<style>
+
+:root {
+    --primary: #6366f1;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --red-bg: #fee2e2;
+    --red-fg: #b91c1c;
+    --yel-bg: #fef3c7;
+    --yel-fg: #b45309;
+    --border: #e2e8f0;
+}
+body {font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:24px;background:var(--bg);color:var(--text);}
+.header-bar {display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;background:var(--card-bg);padding:16px 24px;border-radius:16px;box-shadow:0 4px 6px rgba(0,0,0,0.07);}
+.header-bar h1 {margin:0;font-size:24px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.lang-switch {padding:8px 16px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;}
+.lang-switch:hover {opacity:0.9;}
+.export-btn {padding:8px 16px;border:none;background:#10b981;color:white;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;}
+.export-btn:hover {opacity:0.9;}
+h1 {text-align:center;font-size:28px;font-weight:700;margin:0 0 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.toolbar {background:var(--card-bg);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 4px 6px rgba(0,0,0,0.07);display:grid;grid-template-columns:1fr;gap:12px;}
+.row-center {display:flex;justify-content:center;align-items:center;}
+.row-left {display:flex;justify-content:flex-start;align-items:center;gap:10px;flex-wrap:wrap;}
+.row-actions {display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;}
+#classSelect {font-size:14px;padding:8px 14px;border:2px solid var(--border);border-radius:10px;min-width:160px;}
+.chk {display:flex;align-items:center;gap:6px;cursor:pointer;}
+.chip {display:inline-block;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600;background:#fff;}
+.chip-red {color:#dc2626;border:2px solid #fca5a5;background:#fef2f2;}
+.chip-yellow {color:#d97706;border:2px solid #fcd34d;background:#fffbeb;}
+.tab {padding:10px 20px;border:none;background:#f1f5f9;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;color:var(--text-muted);transition:all 0.2s;}
+.tab:hover {background:#e2e8f0;}
+.tab.active {background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;}
+.reset {padding:10px 20px;border:none;background:#fef2f2;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;color:#dc2626;}
+.reset:hover {background:#fee2e2;}
+.table-wrap {background:var(--card-bg);border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);}
+table {width:100%;border-collapse:collapse;font-size:13px;}
+th,td {padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;}
+thead th {background:linear-gradient(180deg,#f8fafc,#f1f5f9);font-weight:600;color:var(--text-muted);position:sticky;top:0;cursor:pointer;}
+thead th:hover {background:#e2e8f0;}
+th.sticky,td.sticky {position:sticky;background:var(--card-bg);z-index:2;}
+th.sticky.idx {left:0;width:60px;text-align:center;}
+th.sticky.name {left:60px;width:160px;}
+th.sticky.cls {left:220px;width:100px;}
+td.sticky.idx {text-align:center;color:var(--text-muted);font-weight:600;}
+td.sticky.name {font-weight:600;}
+td.sticky.cls {color:var(--text-muted);}
+td.red {background:var(--red-bg)!important;color:var(--red-fg)!important;font-weight:700;}
+td.yellow {background:var(--yel-bg)!important;color:var(--yel-fg)!important;font-weight:700;}
+td.change-pos {color:#059669;font-weight:700;}
+td.change-neg {color:#dc2626;font-weight:700;}
+.charts-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px;}
+.chart-card {background:var(--card-bg);border-radius:16px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.07);transition:transform 0.2s;}
+.chart-card:hover {transform:translateY(-4px);box-shadow:0 8px 12px rgba(0,0,0,0.1);}
+.chart-card img {width:100%;border-radius:8px;}
+#statsTable {width:100%;}
+#statsTable th,#statsTable td {text-align:center;}
+#statsTable td.sticky {left:0;width:120px;text-align:left;font-weight:600;}
+
+</style>
+</head>
+<body>
+  <div class="header-bar">
+    <h1>GPA Analysis Report</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="lang-switch" onclick="toggleLang()">EN / 中文</button>
+      <button class="export-btn" onclick="exportFilteredPDF()">Export PDF</button>
+    </div>
+  </div>
+  
+  <div class="toolbar">
+    
+    <div class="row-left">
+      <label class="chk">
+        <input type="checkbox" id="onlyRed">
+        <span class="chip chip-red" data-zh="红色预警 (<3.0)" data-en="Red Alert (<3.0)">红色预警 (&lt;3.0)</span>
+      </label>
+      <label class="chk">
+        <input type="checkbox" id="onlyYellow">
+        <span class="chip chip-yellow" data-zh="黄色预警 (3.0-3.5)" data-en="Yellow Alert (3.0-3.5)">黄色预警 (&lt;3.5)</span>
+      </label>
+    </div>
+    <div class="row-actions">
+      <button class="tab active" data-target="view-table" data-zh="表格 Table" data-en="表格 Table">表格 Table</button>
+      <button class="tab" data-target="view-charts" data-zh="折线图 Chart" data-en="折线图 Chart">折线图 Chart</button>
+      <button class="tab" data-target="view-stats" data-zh="统计 Stats" data-en="统计 Stats">统计 Stats</button>
+      <button id="resetBtn" class="reset" data-zh="重置 Reset" data-en="重置 Reset">重置 Reset</button>
+    </div>
+  </div>
+
+  <div id="view-table">
+    <div class="table-wrap">
+      <table id="gpaTable">
+        <thead>
+          <tr>
+            <th class="sticky idx">#</th>
+            <th class="sticky name" data-key="姓名">姓名 Name</th>
+            <th class="sticky cls" data-key="班级">班级 Class</th>
+            <th data-key="变化率" data-zh="变化率" data-en="Change">变化率</th>
+            
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="view-charts" style="display:none;">
+    <div class="charts-grid"></div>
+  </div>
+
+  <div id="view-stats" style="display:none;">
+    <div class="table-wrap">
+      <table id="statsTable">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const LOW = 3.0;
+const MED = 3.5;
+const DATES = [];
+const ROWS = [];
+var lang = 'zh';
+
+var state = { classFilter: '', onlyYellow: false, onlyRed: false, sortKey: null, sortDir: 'asc' };
+
+function passesFilters(row) {
+  if (state.classFilter && row['班级'] !== state.classFilter) return false;
+  if (!state.onlyYellow && !state.onlyRed) return true;
+  var hasYellow = false, hasRed = false;
+  for (var d of DATES) {
+    var num = Number(row[d]);
+    if (!isNaN(num) && num !== 0) {
+      if (num < LOW) hasRed = true;
+      else if (num < MED) hasYellow = true;
+    }
+  }
+  if (state.onlyRed && !state.onlyYellow) return hasRed;
+  if (state.onlyYellow && !state.onlyRed) return hasYellow;
+  if (state.onlyYellow && state.onlyRed) return hasYellow || hasRed;
+  return true;
+}
+
+function compare(a, b, key) {
+  var va = a[key], vb = b[key];
+  if (key === '姓名' || key === '班级') {
+    return String(va || '').localeCompare(String(vb || ''), 'zh');
+  } else {
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return Number(va) - Number(vb);
+  }
+}
+
+function render() {
+  var rows = ROWS.filter(passesFilters);
+  
+  if (state.sortKey) {
+    rows.sort(function(a, b) { return compare(a, b, state.sortKey) * (state.sortDir === 'asc' ? 1 : -1); });
+  } else {
+    rows.sort(function(a, b) {
+      var c = String(a['班级'] || '').localeCompare(String(b['班级'] || ''), 'zh');
+      return c !== 0 ? c : String(a['姓名'] || '').localeCompare(String(b['姓名'] || ''), 'zh');
+    });
+  }
+  
+  var tbody = document.querySelector('#gpaTable tbody');
+  tbody.innerHTML = '';
+  
+  rows.forEach(function(r, i) {
+    var tr = document.createElement('tr');
+    
+    var tdIdx = document.createElement('td');
+    tdIdx.className = 'sticky idx';
+    tdIdx.textContent = i + 1;
+    tr.appendChild(tdIdx);
+    
+    var tdName = document.createElement('td');
+    tdName.className = 'sticky name';
+    tdName.textContent = r['姓名'] || '';
+    tr.appendChild(tdName);
+    
+    var tdClass = document.createElement('td');
+    tdClass.className = 'sticky cls';
+    tdClass.textContent = r['班级'] || '';
+    tr.appendChild(tdClass);
+    
+    var tdCR = document.createElement('td');
+    var cr = r['变化率'];
+    if (cr !== undefined && cr !== null && !isNaN(cr)) {
+      var pct = (cr * 100).toFixed(1) + '%';
+      tdCR.textContent = (cr > 0 ? '+' : '') + pct;
+      tdCR.className = cr > 0 ? 'change-pos' : 'change-neg';
+    } else {
+      tdCR.textContent = '—';
+    }
+    tr.appendChild(tdCR);
+    
+    DATES.forEach(function(d) {
+      var td = document.createElement('td');
+      var num = Number(r[d]);
+      if (!isNaN(num)) {
+        td.textContent = num.toFixed(2);
+        if (num < LOW) td.classList.add('red');
+        else if (num < MED) td.classList.add('yellow');
+      } else {
+        td.textContent = r[d] || '';
+      }
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+}
+
+function updateChartsVisibility() {
+  document.querySelectorAll('.chart-card').forEach(function(card) {
+    var cls = card.getAttribute('data-class') || '';
+    var hasYellow = card.getAttribute('data-has-yellow') === '1';
+    var hasRed = card.getAttribute('data-has-red') === '1';
+    
+    var ok = true;
+    if (state.classFilter && cls !== state.classFilter) ok = false;
+    if (state.onlyRed && !hasRed) ok = false;
+    if (state.onlyYellow && !hasYellow) ok = false;
+    
+    card.style.display = ok ? '' : 'none';
+  });
+}
+
+function computeStatsAll() {
+  // 使用筛选后的数据计算统计
+  var filteredRows = ROWS.filter(passesFilters);
+  
+  var avg = new Array(DATES.length).fill(null);
+  var yel = new Array(DATES.length).fill(0);
+  var red = new Array(DATES.length).fill(0);
+  var above4 = new Array(DATES.length).fill(0);
+  
+  for (var j = 0; j < DATES.length; j++) {
+    var d = DATES[j];
+    var sum = 0, cnt = 0;
+    
+    for (var r of filteredRows) {
+      var v = Number(r[d]);
+      if (!isNaN(v) && v > 0) { sum += v; cnt += 1; }
+      if (!isNaN(v) && v > 0) {
+        if (v >= 4.0) above4[j] += 1;
+        else if (v < LOW) red[j] += 1;
+        else if (v < MED) yel[j] += 1;
+      }
+    }
+    
+    avg[j] = (cnt > 0) ? (sum / cnt) : null;
+  }
+  return { avg: avg, yel: yel, red: red, above4: above4 };
+}
+
+function renderStatsAll() {
+  var table = document.getElementById('statsTable');
+  if (!table) return;
+  
+  var trh = table.querySelector('thead tr');
+  trh.innerHTML = '<th data-zh="指标" data-en="Metric">指标</th>' + DATES.map(function(d) { return '<th>' + d + '</th>'; }).join('');
+  
+  var S = computeStatsAll();
+  
+  var rows = [
+    { name: '平均分', nameEn: 'Average', vals: S.avg.map(function(v) { return v == null ? '—' : v.toFixed(2); }) },
+    { name: '>=4.0', nameEn: '>=4.0', vals: S.above4.map(function(n) { return String(n); }) },
+    { name: '黄色预警', nameEn: 'Yellow Alert', vals: S.yel.map(function(n) { return String(n); }) },
+    { name: '红色预警', nameEn: 'Red Alert', vals: S.red.map(function(n) { return String(n); }) }
+  ];
+  
+  var tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+  
+  rows.forEach(function(row) {
+    var tr = document.createElement('tr');
+    var name = lang === 'zh' ? row.name : row.nameEn;
+    tr.innerHTML = '<td class="sticky">' + name + '</td>' + row.vals.map(function(txt) { return '<td>' + txt + '</td>'; }).join('');
+    tbody.appendChild(tr);
+  });
+}
+
+function bindUI() {
+  document.getElementById('classSelect').addEventListener('change', function() {
+    state.classFilter = this.value;
+    render();
+    updateChartsVisibility();
+    renderStatsAll();
+  });
+  
+  document.getElementById('onlyYellow').addEventListener('change', function() {
+    state.onlyYellow = this.checked;
+    render();
+    updateChartsVisibility();
+    renderStatsAll();
+  });
+  
+  document.getElementById('onlyRed').addEventListener('change', function() {
+    state.onlyRed = this.checked;
+    render();
+    updateChartsVisibility();
+    renderStatsAll();
+  });
+  
+  document.getElementById('resetBtn').addEventListener('click', function() {
+    document.getElementById('classSelect').value = '';
+    document.getElementById('onlyYellow').checked = false;
+    document.getElementById('onlyRed').checked = false;
+    state = { classFilter: '', onlyYellow: false, onlyRed: false, sortKey: null, sortDir: 'asc' };
+    render();
+    updateChartsVisibility();
+    renderStatsAll();
+  });
+  
+  document.querySelectorAll('.tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var target = btn.getAttribute('data-target');
+      document.getElementById('view-table').style.display = (target === 'view-table') ? '' : 'none';
+      document.getElementById('view-charts').style.display = (target === 'view-charts') ? '' : 'none';
+      document.getElementById('view-stats').style.display = (target === 'view-stats') ? '' : 'none';
+      updateChartsVisibility();
+      if (target === 'view-stats') renderStatsAll();
+    });
+  });
+  
+  document.querySelector('#gpaTable thead').addEventListener('click', function(e) {
+    var th = e.target.closest('th');
+    if (!th) return;
+    var key = th.getAttribute('data-key');
+    if (!key) return;
+    if (state.sortKey === key) state.sortDir = (state.sortDir === 'asc') ? 'desc' : 'asc';
+    else { state.sortKey = key; state.sortDir = 'asc'; }
+    render();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  bindUI();
+  render();
+  updateChartsVisibility();
+});
+
+function toggleLang() {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  document.querySelectorAll('[data-zh]').forEach(function(el) {
+    var zh = el.getAttribute('data-zh');
+    var en = el.getAttribute('data-en');
+    el.textContent = lang === 'zh' ? zh : en;
+  });
+  render();
+  renderStatsAll();
+}
+
+async function exportFilteredPDF() {
+  // 获取当前筛选后的数据
+  var filteredRows = ROWS.filter(passesFilters);
+  
+  if (filteredRows.length === 0) {
+    alert(lang === 'zh' ? '没有数据可导出' : 'No data to export');
+    return;
+  }
+  
+  // 获取班级列表
+  var classes = [...new Set(filteredRows.map(function(r) { return r['班级']; }))];
+  
+  // 调用后端API
+  try {
+    var btn = document.querySelector('.export-btn');
+    var originalText = btn.textContent;
+    btn.textContent = lang === 'zh' ? '导出中...' : 'Exporting...';
+    btn.disabled = true;
+    
+    var response = await fetch('/export-pdf-filtered', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: filteredRows,
+        classes: classes,
+        dates: DATES,
+        lang: lang
+      })
+    });
+    
+    var result = await response.json();
+    
+    if (result.success) {
+      // 下载PDF
+      window.location.href = result.download_url;
+    } else {
+      alert(lang === 'zh' ? '导出失败: ' + result.error : 'Export failed: ' + result.error);
+    }
+  } catch (error) {
+    alert(lang === 'zh' ? '导出失败: ' + error.message : 'Export failed: ' + error.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+</script>
+</body>
+</html>
