@@ -455,7 +455,7 @@ class GPAAanalyzer:
         gpa_col = pick(gpa_alias)
 
         if not id_col: raise KeyError(f"缺少学号列")
-        if not cls_col: raise KeyError(f"缺少班级列")
+        # 班级列改为可选
         if not gpa_col: raise KeyError(f"缺少GPA列")
         if not (cn_col or en_col): raise KeyError(f"缺少姓名列")
 
@@ -471,9 +471,15 @@ class GPAAanalyzer:
             name_series = df[en_col].astype(str).str.strip()
         name_series = name_series.map(self._clean_name)
         
+        # 班级列是可选的
+        if cls_col:
+            class_data = df[cls_col].astype(str).str.strip()
+        else:
+            class_data = ["All"] * len(df)
+        
         out = pd.DataFrame({
             ID_COL_STD: df[id_col].astype(str).str.strip(),
-            CLASS_COL_STD: df[cls_col].astype(str).str.strip(),
+            CLASS_COL_STD: class_data,
             NAME_COL_STD: name_series.astype(str).str.strip(),
             GPA_COL_STD: pd.to_numeric(df[gpa_col], errors="coerce"),
         })
@@ -719,6 +725,18 @@ class GPAAanalyzer:
         yel_label = f'黄色预警 ({self.LOW}-{self.MED})' if lang == 'zh' else f'Yellow Alert ({self.LOW}-{self.MED})'
         reset_btn = '重置 Reset' if lang == 'zh' else 'Reset'
         
+        # 判断是否显示班级筛选（如果有多个不同的班级）
+        has_classes = len(set(c for c in classes if c != 'All')) > 0
+        class_select_html = ''
+        if has_classes:
+            class_select_html = f'''
+    <div class="row-center">
+      <select id="classSelect">
+        <option value="">{class_all}</option>
+        {''.join(f'<option value="{c}">{c}</option>' for c in classes if c != 'All')}
+      </select>
+    </div>'''
+        
         html = f"""<!doctype html>
 <html lang="{lang}">
 <head>
@@ -739,12 +757,7 @@ class GPAAanalyzer:
   </div>
   
   <div class="toolbar">
-    <div class="row-center">
-      <select id="classSelect">
-        <option value="">{class_all}</option>
-        {''.join(f'<option value="{c}">{c}</option>' for c in classes)}
-      </select>
-    </div>
+    {class_select_html}
     <div class="row-left">
       <label class="chk">
         <input type="checkbox" id="onlyRed">
